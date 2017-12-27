@@ -36,10 +36,6 @@ if (isguestuser()) {
 	die();
 }
 
-if (! has_capability('local/paperattendance:printsearch', $context) && ! has_capability('local/paperattendance:printsearch', $contextsystem)) {
-	print_error(get_string('notallowedprintaqui', 'local_paperattendance'));
-}
-
 $categoryid = optional_param('categoryid', $CFG->paperattendance_categoryid, PARAM_INT);
 $action = optional_param('action', 'viewform', PARAM_TEXT);
 //Page
@@ -131,6 +127,10 @@ $modulesselect .= "</select>";
 
 $context = context_coursecat::instance($categoryid);
 $contextsystem = context_system::instance();
+
+if (! has_capability('local/paperattendance:printsearch', $context) && ! has_capability('local/paperattendance:printsearch', $contextsystem)) {
+	print_error(get_string('notallowedprintaqui', 'local_paperattendance'));
+}
 
 // Creating tables and adding columns header.
 $table = new html_table();
