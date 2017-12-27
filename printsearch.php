@@ -36,15 +36,18 @@ if (isguestuser()) {
 	die();
 }
 
-if (! has_capability('local/paperattendance:printsearch', $context) && ! has_capability('local/paperattendance:printsearch', $contextsystem)) {
-	print_error(get_string('notallowedprintaqui', 'local_paperattendance'));
-}
 
 $categoryid = optional_param('categoryid', $CFG->paperattendance_categoryid, PARAM_INT);
 $action = optional_param('action', 'viewform', PARAM_TEXT);
 //Page
 $page = optional_param('page', 0, PARAM_INT);
 $perpage = 30;
+
+$context = context_coursecat::instance($categoryid);
+$contextsystem = context_system::instance();
+if (! has_capability('local/paperattendance:printsearch', $context) && ! has_capability('local/paperattendance:printsearch', $contextsystem)) {
+	print_error(get_string('notallowedprintaqui', 'local_paperattendance'));
+}
 
 if(is_siteadmin()){
 	$sqlcourses = "SELECT c.id,
@@ -128,10 +131,6 @@ foreach ($modules as $module){
 	$modulesselect .= "<option value='".$module->id."*".$module->initialtime."*".$module->endtime."'>".$module->initialtime."</option>";
 }
 $modulesselect .= "</select>";
-
-$context = context_coursecat::instance($categoryid);
-$contextsystem = context_system::instance();
-
 
 
 // Creating tables and adding columns header.
