@@ -36,20 +36,33 @@ if (isguestuser()) {
 	die();
 }
 
-
 $categoryid = optional_param('categoryid', $CFG->paperattendance_categoryid, PARAM_INT);
 $action = optional_param('action', 'viewform', PARAM_TEXT);
 //Page
 $page = optional_param('page', 0, PARAM_INT);
 $perpage = 30;
 
-$context = context_coursecat::instance($categoryid);
-$contextsystem = context_system::instance();
-if (! has_capability('local/paperattendance:printsearch', $context) && ! has_capability('local/paperattendance:printsearch', $contextsystem)) {
-	print_error(get_string('notallowedprintaqui', 'local_paperattendance'));
-}
-
 if(is_siteadmin()){
+/*	$sqlcourses = "SELECT c.id,
+				c.fullname,
+				cat.name,
+				u.id as teacherid,
+				CONCAT( u.firstname, ' ', u.lastname) as teacher
+				FROM {user} AS u
+				INNER JOIN {role_assignments} ra ON (ra.userid = u.id)
+				INNER JOIN {context} ct ON (ct.id = ra.contextid)
+				INNER JOIN {course} c ON (c.id = ct.instanceid)
+				INNER JOIN {role} r ON (r.id = ra.roleid AND r.id IN ( 3, 4))
+				INNER JOIN {course_categories} as cat ON (cat.id = c.category)
+				WHERE c.timecreated > ? AND c.idnumber > 0 
+				GROUP BY c.id
+				ORDER BY c.fullname";
+	$year = strtotime("1 January".(date('Y'))); Poner aqui la fecha que se desea para elegir los cursos
+	$ncourses = count($DB->get_records_sql($sqlcourses, array($year)));
+	$courses = $DB->get_records_sql($sqlcourses, array($year), $page*$perpage,$perpage);
+	$paths = 1;
+*/	
+	//Query to get all the courses for the admin
 	$sqlcourses = "SELECT c.id,
 				c.fullname,
 				cat.name,
@@ -61,12 +74,11 @@ if(is_siteadmin()){
 				INNER JOIN {course} c ON (c.id = ct.instanceid)
 				INNER JOIN {role} r ON (r.id = ra.roleid AND r.id IN ( 3, 4))
 				INNER JOIN {course_categories} as cat ON (cat.id = c.category)
-				WHERE c.timecreated > ? AND c.idnumber > 0
+				WHERE c.idnumber > 0
 				GROUP BY c.id
 				ORDER BY c.fullname";
-	$year = strtotime("1 January".(date('Y')));
-	$ncourses = count($DB->get_records_sql($sqlcourses, array($year)));
-	$courses = $DB->get_records_sql($sqlcourses, array($year), $page*$perpage,$perpage);
+	$ncourses = count($DB->get_records_sql($sqlcourses));
+	$courses = $DB->get_records_sql($sqlcourses, null, $page*$perpage,$perpage);
 	$paths = 1;
 }
 else{
@@ -132,6 +144,12 @@ foreach ($modules as $module){
 }
 $modulesselect .= "</select>";
 
+$context = context_coursecat::instance($categoryid);
+$contextsystem = context_system::instance();
+
+if (! has_capability('local/paperattendance:printsearch', $context) && ! has_capability('local/paperattendance:printsearch', $contextsystem)) {
+	print_error(get_string('notallowedprintaqui', 'local_paperattendance'));
+}
 
 // Creating tables and adding columns header.
 $table = new html_table();
@@ -151,7 +169,7 @@ $url = new moodle_url('/local/paperattendance/printsearch.php', array(
 ));
 
 $pagetitle = get_string('printtitle', 'local_paperattendance');
-$PAGE->navbar->add(get_string('printtitle', 'local_paperattendance'));
+$PAGE->navbar->add(get_string('pluginname', 'local_paperattendance'));
 $PAGE->navbar->add(get_string('printtitle', 'local_paperattendance'),$url);
 if(is_siteadmin()){
 	$PAGE->set_context($contextsystem);
