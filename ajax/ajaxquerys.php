@@ -461,7 +461,7 @@ switch ($action) {
 					}
 					$count++;
 				}
-				$return["guardar"] = "Asistencia guardada por cada alumno, ";
+				$return["guardar"] = "Asistencia guardada por cada alumno. ";
 				$omegasync = false;
 				
 				if(paperattendance_checktoken($CFG->paperattendance_omegatoken)){
