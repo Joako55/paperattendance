@@ -50,7 +50,7 @@ $pdfname = optional_param('pdfname', '-', PARAM_TEXT);
 $sesskey = optional_param("sesskey", null, PARAM_ALPHANUM);
 //Page
 $page = optional_param('page', 0, PARAM_INT);
-$perpage = 30;
+$perpage = 20;
 
 if(is_siteadmin()){
 	//if the user is an admin show everything
@@ -63,6 +63,7 @@ if(is_siteadmin()){
 	$missing = $DB->get_records_sql($sqlmissing, array(0), $page*$perpage,$perpage);
 }
 else{
+	/*
 	//if the user is a secretary show their own uploaded attendances
 	$sqlcategory = "SELECT cc.*
 					FROM {course_categories} cc
@@ -83,7 +84,31 @@ else{
 					WHERE processed = ? AND uploaderid = ?
 					ORDER BY id DESC";
 	$params = array(0, $USER->id);
+	*/
+	$sqlcategory = "SELECT cc.*
+					FROM {course_categories} cc
+					INNER JOIN {role_assignments} ra ON (ra.userid = ?)
+					INNER JOIN {role} r ON (r.id = ra.roleid AND r.shortname = ?)
+					INNER JOIN {context} co ON (co.id = ra.contextid  AND  co.instanceid = cc.id  )";
 	
+	$categoryparams = array($USER->id, "secrepaper");
+	
+	$categorys = $DB->get_records_sql($sqlcategory, $categoryparams);
+	$categoryscount = count($categorys);
+	if($categorys){
+		foreach($categorys as $category){
+			$categoryids[] = $category->id;
+		}
+		$categoryid = $categoryids[0];
+	}else{
+		print_error(get_string('notallowedmissing', 'local_paperattendance'));
+	}
+	
+	$sqlmissing = "SELECT *
+					FROM {paperattendance_sessionpages}
+					WHERE processed = ?
+					ORDER BY id DESC";
+	$params = array(0);
 	$countmissing = count($DB->get_records_sql($sqlmissing, $params));
 	$missing = $DB->get_records_sql($sqlmissing, $params, $page*$perpage,$perpage);
 }
@@ -95,13 +120,9 @@ if (! has_capability('local/paperattendance:missingpages', $context) && ! has_ca
 	print_error(get_string('notallowedmissing', 'local_paperattendance'));
 }
 
-if($countmissing==0){
-	print_error(get_string('nothingmissing', 'local_paperattendance'));
-}
-
 $url = new moodle_url('/local/paperattendance/missingpages.php');
 
-$PAGE->navbar->add(get_string('missingpages', 'local_paperattendance'));
+$PAGE->navbar->add(get_string('pluginname', 'local_paperattendance'));
 $PAGE->navbar->add(get_string('missingpages', 'local_paperattendance'), $url);
 $PAGE->set_context($contextsystem);
 $PAGE->set_url($url);
@@ -110,6 +131,15 @@ $PAGE->requires->jquery();
 $PAGE->requires->jquery_plugin ( 'ui' );
 $PAGE->requires->jquery_plugin ( 'ui-css' );
 
+if($countmissing==0){
+	//print_error(get_string('nothingmissing', 'local_paperattendance'));
+	$PAGE->set_title(get_string("viewmissing", "local_paperattendance"));
+	$PAGE->set_heading(get_string("viewmissing", "local_paperattendance"));
+	echo $OUTPUT->header();
+	echo $OUTPUT->heading(get_string("viewmissingtitle", "local_paperattendance"));
+	
+	echo html_writer::nonempty_tag("h4", get_string('nothingmissing', 'local_paperattendance'), array("align" => "left"));
+}
 if ($action == "view") {
     $missingtable = new html_table();
     if ($countmissing > 0) {
@@ -117,9 +147,19 @@ if ($action == "view") {
     			get_string("hashtag", "local_paperattendance"),
         		get_string("scan", "local_paperattendance"),
     			get_string("pagenum", "local_paperattendance"),
+    			get_string('date', 'local_paperattendance'),
         		get_string("uploader", "local_paperattendance"),
         		get_string("setting", "local_paperattendance"
         				));
+    	
+    	$missingtable->align = array(
+    			'left',
+    			'center',
+    			'center',
+    			'left',
+    			'center',
+    			'center'
+    	);
     	
     	$counter = $page * $perpage + 1;
     	foreach ($missing as $miss) {
@@ -166,25 +206,32 @@ if ($action == "view") {
             
             //get username
             $username = paperattendance_getusername($miss->uploaderid);
+            //Convert the unix date to a local date
+            $timecreated= $miss->timecreated;
+            $dateconverted = paperattendance_convertdate($timecreated);
             
             //add data to table
             $missingtable->data [] = array(
             	$counter,	
             	$scanaction_attendance,
             	$miss->pagenum +1,
+            	$dateconverted,	
             	$username,
                 $deleteactionmissing . $editactionmissing);
             
             $counter++;
         }
+        $PAGE->set_title(get_string("viewmissing", "local_paperattendance"));
+        $PAGE->set_heading(get_string("viewmissing", "local_paperattendance"));
+        echo $OUTPUT->header();
+        echo $OUTPUT->heading(get_string("viewmissingtitle", "local_paperattendance"));
+        
+        echo html_writer::table($missingtable);  
+        //displays de pagination bar
+        echo $OUTPUT->paging_bar($countmissing, $page, $perpage,
+        		$CFG->wwwroot . '/local/paperattendance/missingpages.php?action=' . $action . '&page=');
     }
     
-    $PAGE->set_title(get_string("viewmissing", "local_paperattendance"));
-    $PAGE->set_heading(get_string("viewmissing", "local_paperattendance"));
-    echo $OUTPUT->header();
-    echo $OUTPUT->heading(get_string("viewmissingtitle", "local_paperattendance"));
-  
-    echo html_writer::table($missingtable);  
 }
 
 if ($action == "edit") {
@@ -196,7 +243,7 @@ if ($action == "edit") {
 		if ($session = $DB->get_record("paperattendance_sessionpages", array("id" => $sesspageid))){
 				
 			$timepdf = time();
-			$path = $CFG -> dataroot. "/temp/local/paperattendance/";
+			$path = $CFG -> dataroot. "/temp/local/paperattendance";
 			$attendancepdffile = $path . "/print/paperattendance_".$sesspageid."_".$timepdf.".pdf";
 				
 			//$pdfpath = $CFG -> dataroot. "/temp/local/paperattendance/unread/".$session->pdfname;
@@ -260,18 +307,18 @@ if ($action == "edit") {
 			/*Inputs of the form to edit a missing page plus the modals help buttons*/
 			
 			//Input for the Shortname of the course like : 2113-V-ECO121-1-1-2017 
-			$inputs = html_writer::div('<label for="course">Shortname del Curso:</label><input type="text" class="form-control" id="course" placeholder="2113-V-ECO121-1-1-2017"><button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#shortnamemodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
+			$inputs = html_writer::div('<label for="course">Shortname del Curso:</label><input type="text" class="form-control" id="course" placeholder="2113-V-ECO121-1-1-2017"><button id="sn" type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#shortnamemodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
 			//Input for the Date of the list like: 01-08-2017
-			$inputs .= html_writer::div('<label for="date">Fecha:</label><input type="text" class="form-control" id="date" placeholder="01-08-2017"><button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#datemodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
+			$inputs .= html_writer::div('<label for="date">Fecha:</label><input type="text" class="form-control" id="date" placeholder="01-08-2017"><button id="d" type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#datemodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
 			//Input for the time of the module of the session like: 16:30
-			$inputs .= html_writer::div('<label for="module">Hora Módulo:</label><input type="text" class="form-control" id="module" placeholder="16:30"><button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#modulemodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
+			$inputs .= html_writer::div('<label for="module">Hora Módulo:</label><input type="text" class="form-control" id="module" placeholder="16:30"><button id="m" type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#modulemodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
 			//Input for the list begin number like: 27
-			$inputs .= html_writer::div('<label for="begin">Inicio Lista:</label><input type="text" class="form-control" id="begin" placeholder="27"><button type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#beginmodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
+			$inputs .= html_writer::div('<label for="begin">Inicio Lista:</label><input type="text" class="form-control" id="begin" placeholder="27"><button id="b" type="button" class="btn btn-info btn-xs" data-toggle="modal" data-target="#beginmodal">?</button>',"form-group", array("style"=>"float:left; margin-left:10%"));
 			//Input fot the submit button of the form
 			$inputs .= html_writer::div('<button type="submit" id="confirm" class="btn btn-default">Continuar</button>',"form-group", array("style"=>"float:right; margin-right:5%; margin-top:3%;"));
 			
 			//We now create de four help modals
-			$shortnamemodal = '<div class="modal fade" id="shortnamemodal" role="dialog" style="width: 50vw;">
+			$shortnamemodal = '<div class="modal fade" id="shortnamemodal" role="dialog" style="width: 50vw; z-index: -10;">
 							    <div class="modal-dialog modal-sm">
 							      <div class="modal-content">
 							        <div class="modal-body">
@@ -284,7 +331,7 @@ if ($action == "edit") {
 							      </div>
 							    </div>
 							  </div>';
-			$datemodal = '<div class="modal fade" id="datemodal" role="dialog" style="width: 50vw;">
+			$datemodal = '<div class="modal fade" id="datemodal" role="dialog" style="width: 50vw; z-index: -10;">
 							    <div class="modal-dialog modal-sm">
 							      <div class="modal-content">
 							        <div class="modal-body">
@@ -297,7 +344,7 @@ if ($action == "edit") {
 							      </div>
 							    </div>
 							  </div>';
-			$modulemodal = '<div class="modal fade" id="modulemodal" role="dialog" style="width: 50vw;">
+			$modulemodal = '<div class="modal fade" id="modulemodal" role="dialog" style="width: 50vw; z-index: -10;">
 							    <div class="modal-dialog modal-sm">
 							      <div class="modal-content">
 							        <div class="modal-body">
@@ -310,7 +357,7 @@ if ($action == "edit") {
 							      </div>
 							    </div>
 							  </div>';
-			$beginmodal = '<div class="modal fade" id="beginmodal" role="dialog" style="width: 50vw;">
+			$beginmodal = '<div class="modal fade" id="beginmodal" role="dialog" style="width: 50vw; z-index: -10;">
 							    <div class="modal-dialog modal-sm">
 							      <div class="modal-content">
 							        <div class="modal-body">
@@ -415,6 +462,22 @@ echo $OUTPUT->footer();
 
 ?>
 
+</script>
+	<script type="text/javascript">
+	$( document ).on( "click", "#sn", function() {
+		jQuery('#shortnamemodal').css('z-index', '');
+	});
+	$(document).on("click", "#d", function() {
+		jQuery("#datemodal").css('z-index', '');
+	});
+	$(document).on("click", "#m", function() {
+		jQuery("#modulemodal").css('z-index', '');
+	});
+	$(document).on("click", "#b", function() {
+		jQuery("#beginmodal").css('z-index', '');
+	});
+</script>
+
 <script>
 var sessinfo = [];
 //When submit button in the form is clicked
@@ -513,16 +576,16 @@ function RefreshSomeEventListener() {
 				/*var error = response["sesion"];
 				var error2 = response["sesiondos"];*/
 				var error3 = response["guardar"];
-				/*var error4 = response["omegatoken"];
+				//var error4 = response["omegatoken"];
 				var error5 = response["omegatoken2"];
-				var error6 = response["arregloalumnos"];
+				/*var error6 = response["arregloalumnos"];
 				var error7 = response["idcurso"];
 				var error8 = response["idsesion"];
 				var error9 = response["arregloinicialalumnos"];*/
 				var moodleurl = "<?php echo $CFG->wwwroot;?>";
 				$('#loader').hide();
 				$("#alerthelp").hide();
-				$("#inputs").html('<div class="alert alert-success" role="alert" style="float:left; margin-top:5%;">'+error3+'</div>');
+				$("#inputs").html('<div class="alert alert-success" role="alert" style="float:left; margin-top:5%;">'+error3+error5+'</div>');
 				//console.log(error+error2+error3+error4+error5+error6+error7+error8+error9);
 				$("#inputs").append('<a href="'+moodleurl+'/local/paperattendance/missingpages.php" class="btn btn-info" role="button" style="float:left; margin-right:70%;">Volver</button>');
 				

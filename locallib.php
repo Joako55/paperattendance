@@ -1745,7 +1745,7 @@ function paperattendance_read_csv($file, $path, $pdffilename, $uploaderobj){
 							$sessid = paperattendance_insert_session($course, $requestorid, $uploaderobj->id, $pdffilename, $description);
 							mtrace("la session id es : ".$sessid);
 							paperattendance_insert_session_module($module, $sessid, $time);
-							paperattendance_save_current_pdf_page_to_session($realpagenum, $sessid, $page, $pdffilename, 1, $uploaderobj->id);
+							paperattendance_save_current_pdf_page_to_session($realpagenum, $sessid, $page, $pdffilename, 1, $uploaderobj->id, time());
 							
 							if($CFG->paperattendance_sendmail == 1){
 								$coursename = $DB->get_record("course", array("id"=> $course));
@@ -1765,7 +1765,7 @@ function paperattendance_read_csv($file, $path, $pdffilename, $uploaderobj){
 								$stop = false;
 							}
 							else{
-								paperattendance_save_current_pdf_page_to_session($realpagenum, $sessid, $page, $pdffilename, 1, $uploaderobj->id);
+								paperattendance_save_current_pdf_page_to_session($realpagenum, $sessid, $page, $pdffilename, 1, $uploaderobj->id, time());
 								mtrace("session ya existe pero esta hoja no habia sido subida ni procesada");
 								$stop = true;
 							}
@@ -1821,7 +1821,7 @@ function paperattendance_read_csv($file, $path, $pdffilename, $uploaderobj){
 					}else{
 						mtrace("Error: can't process this page, no readable qr code");
 						//$return = false;//send email or something to let know this page had problems
-						$sessionpageid = paperattendance_save_current_pdf_page_to_session($realpagenum, null, null, $pdffilename, 0, $uploaderobj->id);
+						$sessionpageid = paperattendance_save_current_pdf_page_to_session($realpagenum, null, null, $pdffilename, 0, $uploaderobj->id, time());
 						
 						if($CFG->paperattendance_sendmail == 1){
 							paperattendance_sendMail($sessionpageid, null, $uploaderobj->id, $uploaderobj->id, null, $pdffilename, "nonprocesspdf", $realpagenum+1);
@@ -1833,7 +1833,7 @@ function paperattendance_read_csv($file, $path, $pdffilename, $uploaderobj){
 
 	  			mtrace("Error: can't process this page, no readable qr code");
 	  			//$return = false;//send email or something to let know this page had problems
-	  			$sessionpageid = paperattendance_save_current_pdf_page_to_session($realpagenum, null, null, $pdffilename, 0, $uploaderobj->id);
+	  			$sessionpageid = paperattendance_save_current_pdf_page_to_session($realpagenum, null, null, $pdffilename, 0, $uploaderobj->id, time());
 	  			
 	  			if($CFG->paperattendance_sendmail == 1){
 	  				paperattendance_sendMail($sessionpageid, null, $uploaderobj->id, $uploaderobj->id, null, $pdffilename, "nonprocesspdf", $realpagenum+1);
@@ -1857,7 +1857,7 @@ function paperattendance_read_csv($file, $path, $pdffilename, $uploaderobj){
  * @param int $sessid
  *            Session id of the current session
  */
-function paperattendance_save_current_pdf_page_to_session($pagenum, $sessid, $qrpage, $pdfname, $processed, $uploaderid){
+function paperattendance_save_current_pdf_page_to_session($pagenum, $sessid, $qrpage, $pdfname, $processed, $uploaderid, $timecreated){
 	global $DB;
 	
 	$pagesession = new stdClass();
@@ -1867,6 +1867,7 @@ function paperattendance_save_current_pdf_page_to_session($pagenum, $sessid, $qr
 	$pagesession->pdfname = $pdfname;
 	$pagesession->processed = $processed;
 	$pagesession->uploaderid = $uploaderid;
+	$pagesession->timecreated = $timecreated;
 	$idsessionpage = $DB->insert_record('paperattendance_sessionpages', $pagesession, true);
 	return $idsessionpage;
 }
@@ -1979,7 +1980,7 @@ function paperattendance_runcsvproccessing($path, $filename, $uploaderobj){
 				$realpagenum = $oldpdfpagenumber[0];
 			}
 			
-			$sessionpageid = paperattendance_save_current_pdf_page_to_session($realpagenum, null, null, $filename, 0, $uploaderobj->id);
+			$sessionpageid = paperattendance_save_current_pdf_page_to_session($realpagenum, null, null, $filename, 0, $uploaderobj->id, time());
 			
 			if($CFG->paperattendance_sendmail == 1){
 				paperattendance_sendMail($sessionpageid, null, $uploaderobj->id, $uploaderobj->id, null, $filename, "nonprocesspdf", $realpagenum);

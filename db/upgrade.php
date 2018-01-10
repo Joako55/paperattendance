@@ -622,6 +622,20 @@ function xmldb_local_paperattendance_upgrade($oldversion) {
 		// Paperattendance savepoint reached.
 		upgrade_plugin_savepoint(true, 2017072505, 'local', 'paperattendance');
 	}
+	if ($oldversion < 2018010801) {
+		
+		// Define field timecreated to be added to paperattendance_sessionpages.
+		$table = new xmldb_table('paperattendance_sessionpages');
+		$field = new xmldb_field('timecreated', XMLDB_TYPE_INTEGER, '20', null, null, null, null, 'uploaderid');
+		
+		// Conditionally launch add field timecreated.
+		if (!$dbman->field_exists($table, $field)) {
+			$dbman->add_field($table, $field);
+		}
+		
+		// Paperattendance savepoint reached.
+		upgrade_plugin_savepoint(true, 2018010801, 'local', 'paperattendance');
+	}
 	
 	
 	return true;

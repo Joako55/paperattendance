@@ -55,7 +55,7 @@ if($courseid){
 	$PAGE->navbar->add($course->fullname, $courseurl );
 }
 
-$PAGE->navbar->add(get_string('uploadtitle', 'local_paperattendance'));
+$PAGE->navbar->add(get_string('pluginname', 'local_paperattendance'));
 $PAGE->navbar->add(get_string('modulestitle', 'local_paperattendance'),$url);
 $PAGE->set_context($context);
 $PAGE->set_url($url);

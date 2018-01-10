@@ -105,7 +105,8 @@ switch ($action) {
 		}
 		//If is site admin he can see courses from all categories
 		if(is_siteadmin()){
-			$year = strtotime("1 January".(date('Y')));
+/*			#Query with date filter
+ * 			$year = strtotime("1 January".(date('Y')));
 			$filter = array($year, "%".$data."%", $data."%");
 			list($sqlin, $parametros1) = $DB->get_in_or_equal(array(3,4));
 			$sqlcourses = "SELECT c.id,
@@ -120,6 +121,24 @@ switch ($action) {
 						INNER JOIN {user} u ON (u.id = ra.userid)
 						INNER JOIN {course_categories} as cat ON (cat.id = c.category)
 						WHERE (c.timecreated > ? AND c.idnumber > 0 ) AND (CONCAT( u.firstname, ' ', u.lastname) like ? OR c.fullname like ?)
+						GROUP BY c.id
+						ORDER BY c.fullname";
+*/			
+			//Query without date filter
+			$filter = array("%".$data."%", $data."%");
+			list($sqlin, $parametros1) = $DB->get_in_or_equal(array(3,4));
+			$sqlcourses = "SELECT c.id,
+						c.fullname,
+						cat.name,
+						u.id as teacherid,
+						CONCAT( u.firstname, ' ', u.lastname) as teacher
+						FROM {role} AS r
+						INNER JOIN {role_assignments} ra ON (ra.roleid = r.id AND r.id $sqlin)
+						INNER JOIN {context} ct ON (ct.id = ra.contextid)
+						INNER JOIN {course} c ON (c.id = ct.instanceid)
+						INNER JOIN {user} u ON (u.id = ra.userid)
+						INNER JOIN {course_categories} as cat ON (cat.id = c.category)
+						WHERE ( c.idnumber > 0 ) AND (CONCAT( u.firstname, ' ', u.lastname) like ? OR c.fullname like ?)
 						GROUP BY c.id
 						ORDER BY c.fullname";
 		}else{ 
@@ -394,7 +413,7 @@ switch ($action) {
 				//Check if the page already was processed
 				if( $DB->record_exists('paperattendance_sessionpages', array('sessionid'=>$sessid,'qrpage'=>$numberpage)) ){
 					//mtrace("This session already exists and was already uploaded and processed / the entered course isn't the same than the existing session");
-					$return["guardar"] = "hoja procesada anteriormente.";
+					$return["guardar"] = "Hoja procesada anteriormente.";
 					
 					$stop = false;
 				}
@@ -410,7 +429,7 @@ switch ($action) {
 					$pagesession->uploaderid = $USER->id;
 					$DB->update_record('paperattendance_sessionpages', $pagesession);
 					//mtrace("Session already exists but this page had not be uploaded nor processed");
-					$return["sesiondos"] = "hoja no procesada antes, ";
+					$return["sesiondos"] = "Hoja no procesada antes, ";
 					$stop = true;
 				}
 			}
@@ -442,7 +461,7 @@ switch ($action) {
 					}
 					$count++;
 				}
-				$return["guardar"] = "asistencia guardada por cada alumno, ";
+				$return["guardar"] = "Asistencia guardada por cada alumno, ";
 				$omegasync = false;
 				
 				if(paperattendance_checktoken($CFG->paperattendance_omegatoken)){
@@ -452,9 +471,9 @@ switch ($action) {
 					$return["idsesion"] = print_r($sessid,true);
 					if(paperattendance_omegacreateattendance($courseobject->id, $arrayalumnos, $sessid)){
 						$omegasync = true;
-						$return["guardar"] = "se creó la asistencia en Omega. ";
+						$return["omegatoken2"] = "Se creó la asistencia en Omega. ";
 					}else{
-						$return["guardar"] = "No se creó la asistencia en Omega. ";
+						$return["omegatoken2"] = "No se creó la asistencia en Omega. ";
 					}
 				}
 				

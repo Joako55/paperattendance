@@ -8,7 +8,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname']="Paper Attendance";
 $string['notallowedupload']="Not allowed to upload attendances";
-$string['uploadtitle']="PaperAttendance";
+$string['uploadtitle']="Upload scanned list";
 $string['uploadsuccessful']="Attendance correctly uploaded";
 $string['header']="Upload form";
 $string['uploadteacher']="Upload requested by";

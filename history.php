@@ -387,7 +387,8 @@ if( $isteacher || is_siteadmin($USER) || has_capability('local/paperattendance:p
 	// Lists all records in the database
 	if ($action == "view"){
 		$getattendances = "SELECT s.id,
-						   sm.date, 
+						   sm.date,
+						   m.name,	 
 						   CONCAT( m.initialtime, ' - ', m.endtime) AS hour,
 				 		   s.pdf,
 						   s.status AS status,
@@ -396,7 +397,7 @@ if( $isteacher || is_siteadmin($USER) || has_capability('local/paperattendance:p
 						   INNER JOIN {paperattendance_sessmodule} AS sm ON (s.id = sm.sessionid)
 						   INNER JOIN {paperattendance_module} AS m ON (sm.moduleid = m.id)
 						   WHERE s.courseid = ?
-						   ORDER BY sm.date DESC";
+						   ORDER BY sm.date DESC, m.name DESC";
 		
 		$attendances = $DB->get_records_sql($getattendances, array($courseid));
 		
@@ -580,7 +581,8 @@ if( $isteacher || is_siteadmin($USER) || has_capability('local/paperattendance:p
 			$left = html_writer::nonempty_tag("div", paperattendance_convertdate($resources->smdate), array("align" => "left"));
 			$left .= html_writer::nonempty_tag("div", get_string("description","local_paperattendance").": ".$summdescription, array("align" => "left"));
 			$left .= html_writer::nonempty_tag("div", get_string("module","local_paperattendance").": ".$resources->hour, array("align" => "left"));			
-			$left .= html_writer::nonempty_tag("div", $OUTPUT->single_button($insertstudenturl, get_string('insertstudentmanually', 'local_paperattendance')), array("align" => "center"));
+			$left .= html_writer::nonempty_tag("div","<br>", array("align" => "left"));
+			//$left .= html_writer::nonempty_tag("div", $OUTPUT->single_button($insertstudenturl, get_string('insertstudentmanually', 'local_paperattendance')), array("align" => "center"));
 			//displays button to add a student manually
 			echo html_writer::nonempty_tag("div", $left);
 			

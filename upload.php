@@ -45,34 +45,30 @@ if (isguestuser()) {
 $courseid = optional_param('courseid',1, PARAM_INT);
 $categoryid = optional_param('categoryid', $CFG->paperattendance_categoryid, PARAM_INT);
 $action = optional_param('action', 'viewform', PARAM_TEXT);
-
-if($courseid > 1){
-	if($course = $DB->get_record("course", array("id" => $courseid))){
-		$context = context_coursecat::instance($course->category);
-	}
-}else if($categoryid > 1){	
-	$context = context_coursecat::instance($categoryid);
-}else{
 	if(is_siteadmin()){
 		$context = context_system::instance();
 	}
 	else{
 		$sqlcategory = "SELECT cc.*
-						FROM {course_categories} cc
-						INNER JOIN {role_assignments} ra ON (ra.userid = ?)
-						INNER JOIN {role} r ON (r.id = ra.roleid)
-						INNER JOIN {context} co ON (co.id = ra.contextid)
-						WHERE cc.id = co.instanceid AND r.shortname = ?";
+					FROM {course_categories} cc
+					INNER JOIN {role_assignments} ra ON (ra.userid = ?)
+					INNER JOIN {role} r ON (r.id = ra.roleid AND r.shortname = ?)
+					INNER JOIN {context} co ON (co.id = ra.contextid  AND  co.instanceid = cc.id  )";
+		
 		$categoryparams = array($USER->id, "secrepaper");
-		$category = $DB->get_record_sql($sqlcategory, $categoryparams);
-		if($category){
-			$categoryid = $category->id;
+		
+		$categorys = $DB->get_records_sql($sqlcategory, $categoryparams);
+		$categoryscount = count($categorys);
+		if($categorys){
+			foreach($categorys as $category){
+				$categoryids[] = $category->id;
+			}
+			$categoryid = $categoryids[0];
 		}else{
 			print_error(get_string('notallowedupload', 'local_paperattendance'));
 		}
 		$context = context_coursecat::instance($categoryid);
 	}
-}
 
 $contextsystem = context_system::instance();
 
@@ -84,18 +80,13 @@ $url = new moodle_url('/local/paperattendance/upload.php', array(
     'courseid' => $courseid,
 	"categoryid" => $categoryid
 ));
-if($courseid && $courseid != 1){
-	$courseurl = new moodle_url('/course/view.php', array(
-			'id' => $courseid,
-			"categoryid" => $categoryid	
-	));
-	$PAGE->navbar->add($course->fullname, $courseurl );
-}
+$pagetitle = get_string('uploadtitle', 'local_paperattendance');
 $PAGE->navbar->add(get_string('uploadtitle', 'local_paperattendance'));
 $PAGE->navbar->add(get_string('header', 'local_paperattendance'),$url);
 $PAGE->set_context($context);
 $PAGE->set_url($url);
 $PAGE->set_pagelayout('standard');
+$PAGE->set_title($pagetitle);
 
 // Add the upload form for the course.
 $addform = new paperattendance_upload_form (null, array(
